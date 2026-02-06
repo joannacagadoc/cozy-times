@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cozy Times - Valentine RPG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            /* 🌿 COZY GREEN THEME 🌿 */
+            --bg-dark: #1a231e;        
+            --primary: #709c74;        
+            
+            --cute-green: #9ec5a2;     
+            --cute-green-dark: #4e6e52;
+            
+            --cozy-cream: #f4f7f4;     
+            --cozy-text: #2f3e32;      
+            
+            /* Heart Colors */
+            --heart-outline: #9d3356;
+            --heart-fill: #e0608a;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-dark);
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 95vw;
+            max-width: 900px;
+            /* MATCH THIS RATIO TO YOUR IMAGE RATIO IF POSSIBLE */
+            aspect-ratio: 16 / 9;
+            border: 6px solid var(--cute-green-dark);
+            background: #2a332c;
+            overflow: hidden;
+            image-rendering: pixelated;
+            box-shadow: 0 0 0 4px #232d25, 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        /* The Visual Layer */
+        .map-background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-size: contain; 
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 0;
+        }
+
+        #player {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .sprite-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 0 rgba(0,0,0,0.3));
+        }
+        
+        .game-asset {
+            position: absolute;
+            object-fit: contain;
+            z-index: 5;
+        }
+
+        /* LOGIC LAYERS */
+        .collision-box {
+            position: absolute;
+            background: rgba(255, 0, 0, 0.0);
+            z-index: 10;
+        }
+        
+        .interaction-box {
+            position: absolute;
+            background: rgba(0, 255, 0, 0.0);
+            z-index: 20;
+            border: 1px dashed rgba(255,255,255,0.0);
+        }
+
+        .debug-mode .collision-box {
+            background: rgba(255, 0, 0, 0.5);
+            border: 2px solid red;
+        }
+        .debug-mode .interaction-box {
+            background: rgba(0, 255, 0, 0.5);
+            border: 2px solid lime;
+        }
+        .debug-info {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 10px;
+            color: lime;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            z-index: 9999;
+            pointer-events: none;
+            line-height: 1.5;
+        }
+        .debug-mode .debug-info { display: block; }
+
+        /* UI Elements */
+        #controls-container {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 40px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .joystick-base {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            backdrop-filter: blur(2px);
+        }
+
+        .joystick-stick {
+            width: 48px;
+            height: 48px;
+            background: var(--cute-green);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid white;
+            box-shadow: 0 4px 0 var(--cute-green-dark);
+        }
+
+        .action-btn {
+            width: 100px;
+            height: 100px;
+            background: var(--cute-green);
+            border: 4px solid white;
+            border-radius: 24px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            cursor: pointer;
+            box-shadow: 0 6px 0 var(--cute-green-dark);
+        }
+
+        .action-btn:active {
+            transform: translateY(6px);
+            box-shadow: none;
+        }
+
+        /* --- MUSIC TOGGLE BUTTON --- */
+        #music-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--cute-green); /* Matches USE button */
+            border: 3px solid white;
+            border-radius: 12px; /* Rounded corners */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 3500;
+            font-size: 24px; /* Size of the emoji */
+            box-shadow: 0 4px 0 var(--cute-green-dark); /* 3D effect */
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        #music-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Muted State (Optional: makes it look greyed out) */
+        #music-btn.muted {
+            filter: grayscale(100%);
+            opacity: 0.7;
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* --- DIALOGUE BOX (Cozy Green Style) --- */
+        #ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background-color: var(--cozy-cream);
+            border: 4px solid var(--primary);
+            outline: 4px solid #bce3c2; 
+            box-shadow: 
+                inset 3px 3px 0 white, 
+                inset -3px -3px 0 #d1e8d5, 
+                6px 6px 0 rgba(0,0,0,0.3);
+            padding: 20px;
+            display: none;
+            z-index: 2000;
+            border-radius: 6px;
+        }
+
+        #dialogue-text {
+            color: var(--cozy-text);
+            font-size: 14px;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            text-shadow: none;
+        }
+
+        /* Styling for emojis inside dialogue */
+        .dialogue-emoji {
+            font-size: 1.5em;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
+
+        #main-menu {
+            position: absolute;
+            inset: 0;
+            background: #b2d8b9; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .btn {
+            background: var(--cute-green);
+            color: #2f3e32;
+            padding: 16px 32px;
+            margin: 12px;
+            cursor: pointer;
+            border: 3px solid white;
+            border-radius: 12px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            box-shadow: 0 6px 0 var(--cute-green-dark); 
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: none;
+        }
+
+        /* --- WALK ANIMATION --- */
+        @keyframes bounce { 
+            0%, 100% { transform: translateY(0); } 
+            50% { transform: translateY(-6px); } 
+        }
+        
+        .walking { 
+            animation: bounce 0.3s infinite ease-in-out; 
+        }
+
+        .interact-bubble {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            color: black;
+            padding: 4px 8px;
+            border: 2px solid black;
+            font-size: 8px;
+            white-space: nowrap;
+            display: none;
+            z-index: 100;
+        }
+        .show-bubble { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div class="debug-info" id="debug-info">
+        DEBUG MODE ON<br>
+        RED = Wall<br>
+        GREEN = Object<br>
+        Mouse: <span id="mouse-coords">0, 0</span><br>
+        Press '0' to toggle
+    </div>
+
+    <!-- Music Toggle & Audio Source -->
+    <div id="music-btn" onclick="toggleMusic()">🎵</div>
+    <audio id="bgm" loop>
+        <source src="assets/bgm.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Main Menu -->
+    <div id="main-menu">
+        <h1 class="text-4xl mb-12 text-[#2f3e32]" style="text-shadow: 3px 3px 0 #fff;">COZY TIMES</h1>
+        <div class="flex flex-col md:flex-row gap-8 items-center justify-center w-full">
+            <button class="btn" onclick="startGame('herHouse')">SERENA'S</button>
+            <button class="btn" onclick="startGame('myHouseF1')">JO'S</button>
+        </div>
+    </div>
+
+    <div id="map-bg" class="map-background"></div>
+    <div id="collision-layer" style="position: absolute; inset: 0; pointer-events: none;"></div>
+    <div id="interaction-layer" style="position: absolute; inset: 0; pointer-events: none;"></div>
+    <div id="asset-layer" style="position: absolute; inset: 0; pointer-events: none;"></div>
+
+    <div id="player">
+        <div id="player-fallback" class="sprite" style="display:none; width:100%; height:100%; align-items:center; justify-content:center; font-size:36px;">👩🏻</div>
+        <img id="player-sprite" class="sprite-img" src="assets/serena.png" alt="Player" onerror="this.style.display='none'; document.getElementById('player-fallback').style.display='flex';">
+        <div id="interact-bubble" class="interact-bubble">USE</div>
+    </div>
+
+    <div id="controls-container">
+        <div class="joystick-base" id="joystick-base">
+            <div class="joystick-stick" id="joystick-stick"></div>
+        </div>
+        <div class="action-btn" id="action-btn">
+            <span style="font-size: 20px; font-family: 'Press Start 2P', cursive; color: #14532d;">USE</span>
+        </div>
+    </div>
+
+    <div id="ui-overlay">
+        <p id="dialogue-text"></p>
+        <div class="text-right">
+            <button class="btn !py-2 !text-[8px] !m-0 !px-4 !bg-[#9ec5a2] !text-[#14532d] !border-2 !shadow-none" onclick="closeDialogue()">NEXT</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const wrapper = document.getElementById('game-wrapper');
+    // Speed set to 1.0 for a slow, cozy walk
+    const player = { x: 0, y: 0, speed: 1.0, width: 48, height: 48, el: document.getElementById('player'), sprite: document.getElementById('player-sprite') };
+    const gameState = { location: 'menu', isDialogueOpen: false, nearbyObject: null, keys: {}, debugMode: false };
+
+    // --- MUSIC LOGIC ---
+    const bgm = document.getElementById('bgm');
+    const musicBtn = document.getElementById('music-btn');
+    let isMusicPlaying = false;
+
+    function toggleMusic() {
+        if (isMusicPlaying) {
+            bgm.pause();
+            musicBtn.classList.add('muted'); // Applies the "off" visual style
+        } else {
+            bgm.play().catch(e => console.log("Audio play failed (user interaction required):", e));
+            musicBtn.classList.remove('muted');
+        }
+        isMusicPlaying = !isMusicPlaying;
+    }
+
+    // ==========================================
+    //  💕 GAME CONFIGURATION - EDIT HERE 💕
+    // ==========================================
+    const maps = {
+        herHouse: {
+            imageSrc: 'assets/serena_home_floor.png', 
+            fallbackColor: '#4a634e',
+            spawn: { x: 55, y: 35 }, 
+
+            // 🛑 RED BOXES (Walls)
+            walls: [
+                { x: 28, y: 14, w: 1, h: 70 },    // Left Wall
+                { x: 72, y: 13, w: 1, h: 50 },   // Right Wall
+                { x: 28, y: 13, w: 50, h: 1 },    // Top Wall
+                { x: 42, y: 55, w: 20, h: 1 },   // Bottom Wall
+                { x: 40, y: 54, w: 1, h: 30 },   // Main Vertical Divider
+                { x: 28, y: 80, w: 15, h: 1 },    // Bedroom / Office Divider
+            ],
+
+            // 💚 GREEN BOXES (Objects)
+            objects: [
+                { id: 'closet', label: 'Workstation', msg: "Working hard or hardly working 🤓", x: 29, y: 15, w: 8, h: 8 },
+                { id: 'bed', label: 'Cuddle', msg: "Squish 💗", x: 39, y: 15, w: 10, h: 20 },
+                { id: 'kitchen', label: 'Cook', msg: "Jo's hungry, let's make them some food! 🍳", x: 62, y: 15, w: 10, h: 6 },
+                { id: 'bath', label: 'Bath', msg: "No more dirty baby 🫧", x: 29, y: 59, w: 10, h: 20 },
+                { id: 'exit', label: 'EXIT', msg: "Leaving...", action: () => returnToMenu(), x: 66, y: 58, w: 8, h: 10 }
+            ],
+
+            furniture: [],
+            npcs: [ { id: 'jo', src: 'assets/jo.png', x: 40, y: 15, w: 8, h: 10 } ]
+        },
+
+        // ==========================================
+        //  JO'S HOUSE - FLOOR 1
+        // ==========================================
+        myHouseF1: {
+            imageSrc: 'assets/jo_home_main.png',
+            fallbackColor: '#2d3b2d',
+            spawn: { x: 33, y: 21 },
+            
+            // 🛑 RED BOXES (Walls - RESTORED)
+            walls: [
+                 { x: 38, y: 14, w: 50, h: 2 }, // Top
+                 { x: 30, y: 74, w: 80, h: 2 }, // Bottom
+                 { x: 28, y: 16, w: 2, h: 80 }, // Left
+                 { x: 71, y: 14, w: 2, h: 80 }, // Right
+            ],
+            
+            // 💚 GREEN BOXES (Interactables - RESTORED)
+            objects: [
+                { id: 'kitchen', label: 'Cook', msg: "Let's make Jo some yummy food", x: 55, y: 10, w: 20, h: 20 },
+                { id: 'tv', label: 'Watch TV', msg: "Cozy movies! 🎬", x: 42, y: 48, w: 20, h: 25 },
+                { id: 'stairs', label: 'Upstairs', action: () => startGame('myHouseF2'), x: 30, y: 60, w: 10, h: 10 },
+                { id: 'exit', label: 'EXIT', action: () => returnToMenu(), x: 30, y: 15, w: 10, h: 10 }
+            ],
+            furniture: [],
+            
+            // 🧍 NPCs
+            npcs: [ 
+                { id: 'jo_tv', src: 'assets/jo.png', x: 52, y: 50, w: 8, h: 10 } 
+            ]
+        },
+
+        // ==========================================
+        //  JO'S HOUSE - FLOOR 2 (UPSTAIRS)
+        // ==========================================
+        myHouseF2: {
+            imageSrc: 'assets/jo_home_room.png',
+            fallbackColor: '#253040',
+            spawn: { x: 34, y: 68 },
+
+            // 🛑 RED BOXES (Walls - RESTORED)
+            walls: [
+                 { x: 25, y: 16, w: 60, h: 2 }, 
+                 { x: 25, y: 80, w: 60, h: 2 }, 
+                 { x: 75, y: 16, w: 2, h: 60 }, 
+                 { x: 25, y: 18, w: 2, h: 60 }, 
+            ],
+
+            // 💚 GREEN BOXES (Interactables - RESTORED)
+            objects: [
+                { id: 'bed', label: 'Cuddle', msg: "Guppy time 🥰", x: 63, y: 30, w: 10, h: 30 },
+                { id: 'closet', label: 'Closet', msg: "Stealing a hoodie 🤫", x: 37, y: 19, w: 10, h: 15 },
+                { id: 'desk', label: 'Work', msg: "Jo's editting a video, don't touch! 😡", x: 48, y: 28, w: 10, h: 10 },
+                { id: 'bath', label: 'Bath', msg: "Brushy brushy 🪥", x: 26, y: 19, w: 10, h: 30 },
+                { id: 'stairs', label: 'Downstairs', action: () => startGame('myHouseF1'), x: 27, y: 64, w: 10, h: 10 }
+            ],
+            furniture: [],
+            
+            // 🧍 NPCs
+            npcs: [ 
+                { id: 'jo_bed', src: 'assets/jo.png', x: 66, y: 32, w: 8, h: 10 } 
+            ]
+        }
+    };
+
+    // ==========================================
+    //  ⚙️ GAME LOGIC
+    // ==========================================
+
+    window.addEventListener('mousemove', e => {
+        if (!gameState.debugMode) return;
+        const rect = wrapper.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        document.getElementById('mouse-coords').innerText = `X:${Math.round(x)} Y:${Math.round(y)}`;
+    });
+
+    window.addEventListener('keydown', e => {
+        if (e.key === '0') {
+            gameState.debugMode = !gameState.debugMode;
+            if (gameState.debugMode) wrapper.classList.add('debug-mode');
+            else wrapper.classList.remove('debug-mode');
+        }
+        gameState.keys[e.key.toLowerCase()] = true;
+        if (e.key.toLowerCase() === 'i') handleInteraction();
+    });
+
+    function returnToMenu() {
+        gameState.location = 'menu';
+        document.getElementById('main-menu').style.display = 'flex';
+        closeDialogue();
+    }
+
+    const joystickBase = document.getElementById('joystick-base');
+    const joystickStick = document.getElementById('joystick-stick');
+    let stickActive = false;
+    let joystickData = { x: 0, y: 0 };
+
+    function handleJoystick(e) {
+        if (!stickActive) return;
+        const rect = joystickBase.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        let dx = touch.clientX - centerX;
+        let dy = touch.clientY - centerY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const maxDist = rect.width / 2;
+        if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+        }
+        joystickStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        joystickData.x = dx / maxDist;
+        joystickData.y = dy / maxDist;
+    }
+
+    joystickBase.addEventListener('touchstart', (e) => { stickActive = true; e.preventDefault(); });
+    joystickBase.addEventListener('mousedown', () => stickActive = true);
+    window.addEventListener('touchmove', handleJoystick);
+    window.addEventListener('mousemove', handleJoystick);
+    window.addEventListener('touchend', () => { stickActive = false; joystickData = {x:0,y:0}; joystickStick.style.transform = 'translate(-50%, -50%)'; });
+    window.addEventListener('mouseup', () => { stickActive = false; joystickData = {x:0,y:0}; joystickStick.style.transform = 'translate(-50%, -50%)'; });
+
+    document.getElementById('action-btn').addEventListener('click', handleInteraction);
+    window.addEventListener('keyup', e => gameState.keys[e.key.toLowerCase()] = false);
+
+    function handleInteraction() {
+        if (gameState.isDialogueOpen) { closeDialogue(); return; }
+        if (gameState.nearbyObject) {
+            if (gameState.nearbyObject.action) {
+                gameState.nearbyObject.action();
+            } else {
+                openDialogue(gameState.nearbyObject);
+            }
+        }
+    }
+
+    function openDialogue(obj) {
+        gameState.isDialogueOpen = true;
+        const textElement = document.getElementById('dialogue-text');
+        // Wrap emojis in span to style them larger
+        // Regex looks for emojis and symbols
+        const formattedMsg = obj.msg.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '<span class="dialogue-emoji">$1</span>');
+        textElement.innerHTML = formattedMsg;
+        document.getElementById('ui-overlay').style.display = 'block';
+        if (obj.special === 'dance') player.sprite.classList.add('dancing');
+    }
+
+    function closeDialogue() {
+        gameState.isDialogueOpen = false;
+        document.getElementById('ui-overlay').style.display = 'none';
+        player.sprite.classList.remove('dancing');
+    }
+
+    function startGame(loc) {
+        gameState.location = loc;
+        document.getElementById('main-menu').style.display = 'none';
+        const mapData = maps[loc];
+        
+        const bgDiv = document.getElementById('map-bg');
+        if (mapData.imageSrc) {
+            bgDiv.style.backgroundImage = `url('${mapData.imageSrc}')`;
+            bgDiv.style.backgroundColor = mapData.fallbackColor || '#000';
+        } else {
+            bgDiv.style.backgroundImage = 'none';
+            bgDiv.style.backgroundColor = mapData.fallbackColor;
+        }
+
+        const wallLayer = document.getElementById('collision-layer');
+        wallLayer.innerHTML = '';
+        if (mapData.walls) {
+            mapData.walls.forEach(wall => {
+                const div = document.createElement('div');
+                div.className = 'collision-box';
+                div.style.left = wall.x + '%';
+                div.style.top = wall.y + '%';
+                div.style.width = wall.w + '%';
+                div.style.height = wall.h + '%';
+                wallLayer.appendChild(div);
+            });
+        }
+
+        const interactLayer = document.getElementById('interaction-layer');
+        interactLayer.innerHTML = '';
+        mapData.objects.forEach(obj => {
+            const div = document.createElement('div');
+            div.className = 'interaction-box';
+            div.style.left = obj.x + '%';
+            div.style.top = obj.y + '%';
+            div.style.width = obj.w + '%';
+            div.style.height = obj.h + '%';
+            interactLayer.appendChild(div);
+        });
+
+        const assetLayer = document.getElementById('asset-layer');
+        assetLayer.innerHTML = '';
+        if (mapData.furniture) {
+            mapData.furniture.forEach(item => {
+                const img = document.createElement('img');
+                img.src = item.src;
+                img.className = 'game-asset';
+                img.style.left = item.x + '%';
+                img.style.top = item.y + '%';
+                img.style.width = item.w + '%';
+                img.style.height = item.h + '%';
+                assetLayer.appendChild(img);
+            });
+        }
+        if (mapData.npcs) {
+            mapData.npcs.forEach(npc => {
+                const img = document.createElement('img');
+                img.src = npc.src;
+                img.className = 'game-asset';
+                img.style.left = npc.x + '%';
+                img.style.top = npc.y + '%';
+                img.style.width = npc.w + '%';
+                img.style.height = npc.h + '%';
+                assetLayer.appendChild(img);
+            });
+        }
+
+        const spawn = mapData.spawn || { x: 50, y: 50 };
+        player.x = (wrapper.clientWidth * spawn.x) / 100;
+        player.y = (wrapper.clientHeight * spawn.y) / 100;
+        updatePlayerPos();
+    }
+
+    function updatePlayerPos() {
+        player.el.style.left = player.x + 'px';
+        player.el.style.top = player.y + 'px';
+    }
+
+    function checkCollision(nextX, nextY) {
+        const mapData = maps[gameState.location];
+        if (!mapData.walls) return false;
+
+        const feetW = player.width * 0.6; 
+        const feetH = player.height * 0.2; 
+        const feetX = nextX + (player.width - feetW) / 2; 
+        const feetY = nextY + player.height - feetH; 
+
+        const pRect = {
+            x: (feetX / wrapper.clientWidth) * 100,
+            y: (feetY / wrapper.clientHeight) * 100,
+            w: (feetW / wrapper.clientWidth) * 100,
+            h: (feetH / wrapper.clientHeight) * 100
+        };
+
+        for (let wall of mapData.walls) {
+            if (pRect.x < wall.x + wall.w &&
+                pRect.x + pRect.w > wall.x &&
+                pRect.y < wall.y + wall.h &&
+                pRect.y + pRect.h > wall.y) {
+                return true; 
+            }
+        }
+        return false;
+    }
+
+    function update() {
+        if (gameState.location !== 'menu' && !gameState.isDialogueOpen) {
+            let dx = joystickData.x * player.speed;
+            let dy = joystickData.y * player.speed;
+
+            if (gameState.keys['w']) dy = -player.speed;
+            if (gameState.keys['s']) dy = player.speed;
+            if (gameState.keys['a']) dx = -player.speed;
+            if (gameState.keys['d']) dx = player.speed;
+
+            const nextX = Math.max(0, Math.min(wrapper.clientWidth - player.width, player.x + dx));
+            const nextY = Math.max(0, Math.min(wrapper.clientHeight - player.height, player.y + dy));
+            
+            if (!checkCollision(nextX, player.y)) player.x = nextX;
+            if (!checkCollision(player.x, nextY)) player.y = nextY;
+            
+            updatePlayerPos();
+
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) player.sprite.classList.add('walking');
+            else player.sprite.classList.remove('walking');
+
+            checkProximity();
+        }
+        requestAnimationFrame(update);
+    }
+
+    function checkProximity() {
+        const mapData = maps[gameState.location];
+        let found = null;
+
+        const pX = (player.x / wrapper.clientWidth) * 100;
+        const pY = (player.y / wrapper.clientHeight) * 100;
+        const pW = (player.width / wrapper.clientWidth) * 100;
+        const pH = (player.height / wrapper.clientHeight) * 100;
+
+        const reach = 1.5; 
+        const reachLeft = pX - reach;
+        const reachRight = pX + pW + reach;
+        const reachTop = pY - reach;
+        const reachBottom = pY + pH + reach;
+
+        mapData.objects.forEach(obj => {
+            const objRight = obj.x + obj.w;
+            const objBottom = obj.y + obj.h;
+
+            if (reachRight > obj.x && 
+                reachLeft < objRight && 
+                reachBottom > obj.y && 
+                reachTop < objBottom) {
+                found = obj;
+            }
+        });
+
+        gameState.nearbyObject = found;
+        const bubble = document.getElementById('interact-bubble');
+        
+        if (!bubble) return;
+
+        if (found) {
+            bubble.innerText = found.label;
+            bubble.classList.add('show-bubble');
+            if (player.y < 60) bubble.style.top = '48px';
+            else bubble.style.top = '-40px';
+        } else {
+            bubble.classList.remove('show-bubble');
+        }
+    }
+
+    update();
+</script>
+
+</body>
+</html>

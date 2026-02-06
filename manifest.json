@@ -1,0 +1,21 @@
+{
+  "name": "Cozy Times",
+  "short_name": "CozyTimes",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a231e",
+  "theme_color": "#4e6e52",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
